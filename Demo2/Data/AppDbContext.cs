@@ -1,4 +1,4 @@
-﻿using Demo2.Models;
+using Demo2.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Demo2.Data
@@ -12,5 +12,10 @@ namespace Demo2.Data
         public DbSet<Dish> Dishes { get; set; }
         public DbSet<Inventory> Inventories { get; set; }
         public DbSet<OrderDetail> OrderDetails { get; set; }
+        public DbSet<User> Users { get; set; }
+        public DbSet<Product> Products { get; set; }
+        public DbSet<Reward> Rewards { get; set; }
+        public DbSet<UserReward> UserRewards { get; set; }
+        public DbSet<SupportTicket> SupportTickets { get; set; }
     }
 }
