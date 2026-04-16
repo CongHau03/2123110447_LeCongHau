@@ -120,14 +120,7 @@ function Register({ setView }) {
                 <input type="password" placeholder="Mật khẩu" onChange={e => setFormData({...formData, password: e.target.value})} required />
                 <input type="text" placeholder="Họ và tên" onChange={e => setFormData({...formData, fullName: e.target.value})} required />
                 
-                <div style={{marginBottom: '1rem'}}>
-                  <label style={{display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)'}}>Bạn muốn đăng ký dưới quyền hạn nào?</label>
-                  <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
-                    <option value="Customer">Khách hàng</option>
-                    <option value="Staff">Nhân viên</option>
-                    <option value="Admin">Quản trị viên</option>
-                  </select>
-                </div>
+  
 
                 <button type="submit" className="btn-gradient" style={{width: '100%', marginTop: '0.5rem'}}>Đăng ký tài khoản</button>
               </form>

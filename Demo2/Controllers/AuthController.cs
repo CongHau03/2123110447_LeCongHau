@@ -27,7 +27,7 @@ namespace Demo2.Controllers
                 Username = model.Username,
                 PasswordHash = model.Password, // In real app, hash this!
                 FullName = model.FullName,
-                Role = string.IsNullOrEmpty(model.Role) ? "Customer" : model.Role,
+                Role = "Customer", // Force default role as Customer
                 Points = 0
             };
 

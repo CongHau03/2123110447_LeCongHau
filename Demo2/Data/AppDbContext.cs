@@ -17,5 +17,20 @@ namespace Demo2.Data
         public DbSet<Reward> Rewards { get; set; }
         public DbSet<UserReward> UserRewards { get; set; }
         public DbSet<SupportTicket> SupportTickets { get; set; }
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // Seed Admin account
+            modelBuilder.Entity<User>().HasData(new User
+            {
+                Id = 999,
+                Username = "admin",
+                PasswordHash = "admin123", // Using plain text as the current system does
+                FullName = "System Administrator",
+                Role = "Admin",
+                Points = 0
+            });
+        }
     }
 }
