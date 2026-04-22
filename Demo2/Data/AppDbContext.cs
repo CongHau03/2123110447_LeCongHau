@@ -17,6 +17,7 @@ namespace Demo2.Data
         public DbSet<Reward> Rewards { get; set; }
         public DbSet<UserReward> UserRewards { get; set; }
         public DbSet<SupportTicket> SupportTickets { get; set; }
+        public DbSet<Transaction> Transactions { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

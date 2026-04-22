@@ -1,4 +1,4 @@
-﻿namespace Demo2.Models
+namespace Demo2.Models
 {
     public class Booking
     {
@@ -7,5 +7,6 @@
         public DateTime CheckIn { get; set; } // [cite: 46]
         public DateTime CheckOut { get; set; }
         public decimal TotalPrice { get; set; } // [cite: 46]
+        public string Status { get; set; } = "Chờ duyệt"; // Chờ duyệt, Đã duyệt, Đã hủy
     }
 }
