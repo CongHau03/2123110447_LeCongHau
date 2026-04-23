@@ -4,6 +4,7 @@ using Demo2.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Demo2.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260423053929_AddVoucherCodeToReward")]
+    partial class AddVoucherCodeToReward
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -185,32 +188,6 @@ namespace Demo2.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Rewards");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Description = "Giảm giá 20% cho mọi dịch vụ",
-                            Name = "Vé giảm 20%",
-                            PointsRequired = 500,
-                            VoucherCode = "GIAM20"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Description = "Giảm giá 10% cho mọi dịch vụ",
-                            Name = "Vé giảm 10 %",
-                            PointsRequired = 250,
-                            VoucherCode = "GIAM10"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Description = "Giảm ngay 200.000đ",
-                            Name = "Vé Giảm Giá 200k",
-                            PointsRequired = 300,
-                            VoucherCode = "HOTEL200"
-                        });
                 });
 
             modelBuilder.Entity("Demo2.Models.Room", b =>
@@ -342,12 +319,6 @@ namespace Demo2.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("GeneratedCode")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsUsed")
-                        .HasColumnType("bit");
 
                     b.Property<DateTime>("RedeemedAt")
                         .HasColumnType("datetime2");

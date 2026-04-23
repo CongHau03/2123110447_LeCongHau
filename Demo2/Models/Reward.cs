@@ -9,5 +9,6 @@ namespace Demo2.Models
         public string Name { get; set; }
         public string Description { get; set; }
         public int PointsRequired { get; set; }
+        public string? VoucherCode { get; set; }
     }
 }

@@ -17,5 +17,7 @@ namespace Demo2.Models
         public Reward? Reward { get; set; }
 
         public DateTime RedeemedAt { get; set; } = DateTime.UtcNow;
+        public string? GeneratedCode { get; set; }
+        public bool IsUsed { get; set; } = false;
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -93,6 +93,10 @@ namespace Demo2.Controllers
             {
                 return NotFound();
             }
+
+            // Delete related order details first to avoid FK conflict
+            var orderDetails = _context.OrderDetails.Where(od => od.DishId == id);
+            _context.OrderDetails.RemoveRange(orderDetails);
 
             _context.Dishes.Remove(dish);
             await _context.SaveChangesAsync();

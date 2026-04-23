@@ -173,6 +173,7 @@ function Dashboard({ user, setUser }) {
         <button onClick={() => setActiveTab('bookings')} className={activeTab === 'bookings' ? 'active' : ''}>Đặt phòng</button>
         <button onClick={() => setActiveTab('support')} className={activeTab === 'support' ? 'active' : ''}>Chăm sóc KH</button>
         <button onClick={() => setActiveTab('rewards')} className={activeTab === 'rewards' ? 'active' : ''}>Quà tặng</button>
+        <button onClick={() => setActiveTab('warehouse')} className={activeTab === 'warehouse' ? 'active' : ''}>Kho Voucher 🎁</button>
         
         {(user.role === 'Admin' || user.role === 'Staff') && (
           <>
@@ -188,7 +189,8 @@ function Dashboard({ user, setUser }) {
         {activeTab === 'dishes' && <Dishes user={user} foodOrders={foodOrders} setFoodOrders={setFoodOrders} />}
         {activeTab === 'bookings' && <Bookings user={user} newBooking={newBooking} setNewBooking={setNewBooking} />}
         {activeTab === 'support' && <Support user={user} />}
-        {activeTab === 'rewards' && <Rewards user={user} setUser={setUser} />}
+        {activeTab === 'rewards' && <Rewards user={user} setUser={setUser} setActiveTab={setActiveTab} />}
+        {activeTab === 'warehouse' && <Warehouse user={user} />}
         {activeTab === 'users' && (user.role === 'Admin' || user.role === 'Staff') && <Users user={user} />}
         {activeTab === 'revenue' && (user.role === 'Admin' || user.role === 'Staff') && <Revenue />}
       </div>
@@ -198,7 +200,19 @@ function Dashboard({ user, setUser }) {
 
 // ---- FOOD ORDERS (BILLING) ----
 function FoodOrders({ user, foodOrders, setFoodOrders }) {
-  const total = foodOrders.reduce((sum, item) => sum + item.price, 0);
+  const [voucher, setVoucher] = useState(null);
+  const baseTotal = foodOrders.reduce((sum, item) => sum + item.price, 0);
+  
+  let discount = 0;
+  if (voucher) {
+    if (voucher.discountType === 'Percentage') {
+      discount = baseTotal * (voucher.discountValue / 100);
+    } else {
+      discount = voucher.discountValue;
+    }
+  }
+  
+  const finalTotal = Math.max(0, baseTotal - discount);
 
   const removeOrder = (id) => {
     setFoodOrders(foodOrders.filter(o => o.id !== id));
@@ -208,9 +222,13 @@ function FoodOrders({ user, foodOrders, setFoodOrders }) {
     <div>
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem'}}>
         <h3>Chi tiết Thanh toán Đồ ăn & Thức uống</h3>
-        <div className="card" style={{padding: '1rem 2rem', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid var(--accent)'}}>
-          <p style={{fontSize: '0.9rem', color: 'var(--text-muted)'}}>Tổng cộng cần thanh toán:</p>
-          <h2 style={{color: 'var(--accent)'}}>{formatVND(total)}</h2>
+        <div style={{display: 'flex', gap: '1.5rem', alignItems: 'center'}}>
+           <VoucherInput amount={baseTotal} onApply={setVoucher} />
+           <div className="card" style={{padding: '1rem 2rem', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid var(--accent)'}}>
+             <p style={{fontSize: '0.9rem', color: 'var(--text-muted)'}}>Tổng cộng:</p>
+             <h2 style={{color: 'var(--accent)'}}>{formatVND(finalTotal)}</h2>
+             {discount > 0 && <p style={{color: 'var(--success)', fontSize: '0.8rem'}}>Đã giảm: {formatVND(discount)} ({voucher.code})</p>}
+           </div>
         </div>
       </div>
 
@@ -252,17 +270,71 @@ function FoodOrders({ user, foodOrders, setFoodOrders }) {
             const res = await fetch(`${API_URL}/transactions`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ description: `Thanh toán Đồ ăn (${foodOrders.length} món)`, amount: total })
+              body: JSON.stringify({ 
+                description: `Thanh toán Đồ ăn (${foodOrders.length} món) - Voucher: ${voucher?.code || 'None'}`, 
+                amount: finalTotal 
+              })
             });
             if (res.ok) {
+              if (voucher) {
+                await fetch(`${API_URL}/vouchers/use/${voucher.code}`, { method: 'POST' });
+              }
               alert("Thanh toán thành công! Tiền đã được cộng vào doanh thu.");
               setFoodOrders([]);
+              setVoucher(null);
             }
           }}>
             Xác nhận Thanh toán
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function VoucherInput({ amount, onApply }) {
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [appliedCode, setAppliedCode] = useState('');
+
+  const handleApply = async () => {
+    if (!code) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/vouchers/validate/${code}?amount=${amount}`);
+      if (res.ok) {
+        const data = await res.json();
+        onApply(data);
+        setAppliedCode(code);
+        alert(`Áp dụng mã ${code} thành công!`);
+      } else {
+        const err = await res.text();
+        alert(err);
+      }
+    } catch (e) {
+      alert("Lỗi kết nối máy chủ");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+      <input 
+        type="text" 
+        placeholder="Mã giảm giá" 
+        value={code} 
+        onChange={e => setCode(e.target.value.toUpperCase())}
+        style={{width: '150px', margin: 0}}
+      />
+      <button 
+        onClick={handleApply} 
+        disabled={loading || !code || code === appliedCode}
+        className="accent"
+        style={{padding: '0.8rem 1.2rem'}}
+      >
+        {loading ? '...' : 'Áp dụng'}
+      </button>
     </div>
   );
 }
@@ -387,6 +459,7 @@ function Dishes({ user, foodOrders, setFoodOrders }) {
 function Bookings({ user, newBooking, setNewBooking }) {
   const [bookings, setBookings] = useState([]);
   const [editingBooking, setEditingBooking] = useState(null);
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
 
   useEffect(() => { loadBookings(); }, []);
 
@@ -403,6 +476,10 @@ function Bookings({ user, newBooking, setNewBooking }) {
       body: JSON.stringify(newBooking)
     });
     if (res.ok) {
+      if (appliedVoucher) {
+        await fetch(`${API_URL}/vouchers/use/${appliedVoucher.code}`, { method: 'POST' });
+        setAppliedVoucher(null);
+      }
       alert("Đặt phòng thành công!");
       setNewBooking({ roomId: 1, checkIn: '', checkOut: '', totalPrice: 0 });
       loadBookings();
@@ -447,12 +524,31 @@ function Bookings({ user, newBooking, setNewBooking }) {
     <div>
       <h3>Lịch đặt phòng</h3>
       
-      <form onSubmit={addBooking} className="crud-form">
-        <input type="number" placeholder="Mã Phòng" title="Mã Phòng" value={newBooking.roomId} onChange={e => setNewBooking({...newBooking, roomId: parseInt(e.target.value)})} required />
-        <input type="datetime-local" title="Ngày nhận phòng" value={newBooking.checkIn} onChange={e => setNewBooking({...newBooking, checkIn: e.target.value})} required />
-        <input type="datetime-local" title="Ngày trả phòng" value={newBooking.checkOut} onChange={e => setNewBooking({...newBooking, checkOut: e.target.value})} required />
-        <input type="number" placeholder="Giá tổng (VNĐ)" value={newBooking.totalPrice} onChange={e => setNewBooking({...newBooking, totalPrice: parseFloat(e.target.value)})} required />
-        <button type="submit" className="btn-gradient">Tạo đặt phòng</button>
+      <form onSubmit={addBooking} className="crud-form" style={{alignItems: 'flex-end'}}>
+        <div style={{flex: 1}}>
+          <label style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>Mã Phòng</label>
+          <input type="number" placeholder="Mã Phòng" value={newBooking.roomId} onChange={e => setNewBooking({...newBooking, roomId: parseInt(e.target.value)})} required />
+        </div>
+        <div style={{flex: 1}}>
+          <label style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>Ngày nhận</label>
+          <input type="datetime-local" value={newBooking.checkIn} onChange={e => setNewBooking({...newBooking, checkIn: e.target.value})} required />
+        </div>
+        <div style={{flex: 1}}>
+          <label style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>Ngày trả</label>
+          <input type="datetime-local" value={newBooking.checkOut} onChange={e => setNewBooking({...newBooking, checkOut: e.target.value})} required />
+        </div>
+        <div style={{flex: 1}}>
+          <label style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>Giá gốc (VNĐ)</label>
+          <input type="number" placeholder="Giá tổng (VNĐ)" value={newBooking.totalPrice} onChange={e => setNewBooking({...newBooking, totalPrice: parseFloat(e.target.value)})} required />
+        </div>
+        <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem'}}>
+           <VoucherInput amount={newBooking.totalPrice} onApply={(v) => {
+             let disc = v.discountType === 'Percentage' ? newBooking.totalPrice * (v.discountValue / 100) : v.discountValue;
+             setNewBooking({...newBooking, totalPrice: Math.max(0, newBooking.totalPrice - disc)});
+             setAppliedVoucher(v);
+           }} />
+        </div>
+        <button type="submit" className="btn-gradient" style={{height: 'fit-content', padding: '1rem 2rem'}}>Tạo đặt phòng</button>
       </form>
 
       <div className="table-container" style={{marginTop: '2rem'}}>
@@ -515,9 +611,9 @@ function Bookings({ user, newBooking, setNewBooking }) {
 }
 
 // ---- REWARDS ----
-function Rewards({ user, setUser }) {
+function Rewards({ user, setUser, setActiveTab }) {
   const [rewards, setRewards] = useState([]);
-  const [newRew, setNewRew] = useState({ name: '', description: '', pointsRequired: 0 });
+  const [newRew, setNewRew] = useState({ name: '', description: '', pointsRequired: 0, voucherCode: '' });
 
   useEffect(() => { loadRewards(); }, []);
 
@@ -544,8 +640,9 @@ function Rewards({ user, setUser }) {
     });
     const data = await res.json();
     if(res.ok) {
-      alert("Đổi quà thành công!");
+      alert("Đổi quà thành công! Voucher đã được chuyển vào kho của bạn.");
       setUser({...user, points: data.remainingPoints});
+      setActiveTab('warehouse');
     } else {
       alert(data || "Lỗi khi đổi quà");
     }
@@ -555,10 +652,11 @@ function Rewards({ user, setUser }) {
     <div>
       <h3>Quà tặng Tri ân</h3>
       {user.role === 'Admin' && (
-        <form onSubmit={addReward} style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
-          <input type="text" placeholder="Tên quà tặng" onChange={e => setNewRew({...newRew, name: e.target.value})} required/>
-          <input type="text" placeholder="Mô tả" onChange={e => setNewRew({...newRew, description: e.target.value})} />
-          <input type="number" placeholder="Điểm yêu cầu" onChange={e => setNewRew({...newRew, pointsRequired: parseInt(e.target.value)})} required/>
+        <form onSubmit={addReward} style={{display: 'flex', gap: '1rem', marginTop: '1rem', flexWrap: 'wrap'}}>
+          <input type="text" placeholder="Tên quà tặng" onChange={e => setNewRew({...newRew, name: e.target.value})} required style={{flex: 1}}/>
+          <input type="text" placeholder="Mô tả" onChange={e => setNewRew({...newRew, description: e.target.value})} style={{flex: 1}}/>
+          <input type="number" placeholder="Điểm" onChange={e => setNewRew({...newRew, pointsRequired: parseInt(e.target.value)})} required style={{width: '100px'}}/>
+          <input type="text" placeholder="Mã Voucher" onChange={e => setNewRew({...newRew, voucherCode: e.target.value})} style={{width: '150px'}}/>
           <button type="submit">Tạo quà tặng</button>
         </form>
       )}
@@ -569,11 +667,79 @@ function Rewards({ user, setUser }) {
             <p style={{color: 'var(--text-muted)'}}>{r.description}</p>
             <p style={{fontSize: '1.25rem', fontWeight: 'bold', marginTop: '1rem', color: 'var(--warning)'}}>⭐ {r.pointsRequired} điểm</p>
             {user.role === 'Customer' && (
-              <button onClick={() => redeem(r.id)} style={{marginTop: '1rem', width: '100%'}}>Đổi quà</button>
+              <button onClick={() => redeem(r.id)} className="btn-gradient" style={{marginTop: '1rem', width: '100%'}}>Đổi quà ngay</button>
             )}
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ---- VOUCHER WAREHOUSE ----
+function Warehouse({ user }) {
+  const [userRewards, setUserRewards] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadUserRewards();
+  }, []);
+
+  const loadUserRewards = async () => {
+    try {
+      const res = await fetch(`${API_URL}/rewards/user/${user.id}`);
+      if (res.ok) {
+        setUserRewards(await res.json());
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem'}}>
+        <h3>Kho Voucher của bạn</h3>
+        <button onClick={loadUserRewards} className="accent">Làm mới</button>
+      </div>
+
+      {loading ? <p>Đang tải...</p> : (
+        <div className="grid">
+          {userRewards.filter(ur => !ur.isUsed).map(ur => (
+            <div key={ur.id} className="card" style={{border: '1px dashed var(--accent)', background: 'rgba(99, 102, 241, 0.05)'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                 <h4 style={{color: 'var(--accent)'}}>{ur.reward.name}</h4>
+                 <span style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{new Date(ur.redeemedAt).toLocaleDateString('vi-VN')}</span>
+              </div>
+              <p style={{fontSize: '0.9rem', margin: '0.5rem 0'}}>{ur.reward.description}</p>
+              
+              <div style={{marginTop: '1.5rem', padding: '1rem', background: 'var(--bg-dark)', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border)'}}>
+                 <p style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem'}}>MÃ VOUCHER:</p>
+                 <code style={{fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--warning)', letterSpacing: '2px'}}>
+                   {ur.generatedCode || 'VOUCHER123'}
+                 </code>
+                 <button 
+                   onClick={() => {
+                     navigator.clipboard.writeText(ur.generatedCode || 'VOUCHER123');
+                     alert("Đã sao chép mã voucher!");
+                   }}
+                   style={{marginTop: '1rem', width: '100%', fontSize: '0.8rem'}}
+                 >
+                   Sao chép mã
+                 </button>
+              </div>
+            </div>
+          ))}
+          {userRewards.filter(ur => !ur.isUsed).length === 0 && (
+            <div style={{gridColumn: '1/-1', textAlign: 'center', padding: '5rem'}}>
+              <p style={{fontSize: '3rem'}}>Empty 📦</p>
+              <p style={{color: 'var(--text-muted)', marginTop: '1rem'}}>Bạn chưa có voucher nào. Hãy tích lũy điểm và đổi quà nhé!</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

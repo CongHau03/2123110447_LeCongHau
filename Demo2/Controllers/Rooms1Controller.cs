@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -93,6 +93,10 @@ namespace Demo2.Controllers
             {
                 return NotFound();
             }
+
+            // Delete related bookings first to avoid FK conflict
+            var bookings = _context.Bookings.Where(b => b.RoomId == id);
+            _context.Bookings.RemoveRange(bookings);
 
             _context.Rooms.Remove(room);
             await _context.SaveChangesAsync();
